@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Non-AR Raycast — Three.js</title>
+  <style>body{margin:0;overflow:hidden}canvas{display:block}</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+
+let scene, camera, renderer, controls, raycaster, mouse;
+let objects = [];
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x222222);
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(3,2,4);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(2,3,2);
+  scene.add(light);
+
+  const geometry = new THREE.BoxGeometry();
+  for (let i = 0; i < 8; i++) {
+    const material = new THREE.MeshStandardMaterial({ color: Math.random()*0xffffff });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(Math.random()*4-2, Math.random()*2, Math.random()*4-2);
+    objects.push(mesh);
+    scene.add(mesh);
+  }
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  window.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("resize", onWindowResize);
+}
+
+function onPointerDown(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(objects);
+  if (intersects.length > 0) {
+    const obj = intersects[0].object;
+    obj.material.color.set(Math.random() * 0xffffff);
+    obj.scale.multiplyScalar(1.1);
+    setTimeout(()=>obj.scale.set(1,1,1),250);
+    console.log('Hit', obj);
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+</script>
+</body>
+</html>
