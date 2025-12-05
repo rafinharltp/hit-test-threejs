@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AR Hit Test — Three.js</title>
+  <style>html,body{height:100%;margin:0;background:#000}canvas{display:block}</style>
+</head>
+<body>
+<button id="end" style="position:fixed;z-index:999;left:8px;top:8px;padding:8px">Sair AR</button>
+<script src="https://unpkg.com/three@0.126.0/build/three.js"></script>
+<script src="https://unpkg.com/three@0.126.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+let session = null;
+document.getElementById('end').addEventListener('click', ()=>{ if(session) session.end(); });
+
+async function activateXR() {
+  const canvas = document.createElement('canvas');
+  document.body.appendChild(canvas);
+  const gl = canvas.getContext('webgl', {xrCompatible: true});
+
+  const scene = new THREE.Scene();
+  const light = new THREE.DirectionalLight(0xffffff,1.0);
+  light.position.set(1,2,1); scene.add(light);
+  scene.add(new THREE.AmbientLight(0x606060));
+
+  const renderer = new THREE.WebGLRenderer({canvas,context:gl,alpha:true,preserveDrawingBuffer:true});
+  renderer.autoClear = false;
+  const camera = new THREE.PerspectiveCamera(); camera.matrixAutoUpdate = false;
+
+  session = await navigator.xr.requestSession('immersive-ar', {requiredFeatures:['hit-test']});
+  session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+
+  const referenceSpace = await session.requestReferenceSpace('local');
+  const viewerSpace = await session.requestReferenceSpace('viewer');
+  const hitTestSource = await session.requestHitTestSource({space: viewerSpace});
+
+  const loader = new THREE.GLTFLoader();
+  let reticle = null;
+  loader.load('https://immersive-web.github.io/webxr-samples/media/gltf/reticle/reticle.gltf', function(gltf){ reticle = gltf.scene; reticle.visible=false; scene.add(reticle); });
+  let model = null;
+  loader.load('./rato_triangle.gltf', function(gltf){ model = gltf.scene; model.scale.set(0.5,0.5,0.5); }, undefined, ()=>{ const fallback = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.2), new THREE.MeshStandardMaterial({color:0x8B4513})); model = new THREE.Object3D(); model.add(fallback); });
+
+  session.addEventListener('select', ()=>{
+    if(model && reticle && reticle.visible){
+      const clone = model.clone();
+      clone.position.copy(reticle.position);
+      clone.quaternion.copy(reticle.quaternion);
+      scene.add(clone);
+    }
+  });
+
+  function onXRFrame(time, frame){
+    session.requestAnimationFrame(onXRFrame);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, session.renderState.baseLayer.framebuffer);
+    const pose = frame.getViewerPose(referenceSpace);
+    if(pose){
+      const view = pose.views[0];
+      const viewport = session.renderState.baseLayer.getViewport(view);
+      renderer.setSize(viewport.width, viewport.height);
+      camera.matrix.fromArray(view.transform.matrix);
+      camera.projectionMatrix.fromArray(view.projectionMatrix);
+      camera.updateMatrixWorld(true);
+
+      const hitResults = frame.getHitTestResults(hitTestSource);
+      if(hitResults.length>0 && reticle){
+        const hitPose = hitResults[0].getPose(referenceSpace);
+        reticle.visible = true;
+        reticle.position.set(hitPose.transform.position.x, hitPose.transform.position.y, hitPose.transform.position.z);
+        reticle.quaternion.set(hitPose.transform.orientation.x, hitPose.transform.orientation.y, hitPose.transform.orientation.z, hitPose.transform.orientation.w);
+        reticle.updateMatrixWorld(true);
+      }
+      renderer.render(scene, camera);
+    }
+  }
+  session.requestAnimationFrame(onXRFrame);
+}
+
+activateXR().catch(e=>{ alert('Erro ao iniciar AR: '+e.message); window.location.href='nonar.html'; });
+</script>
+</body>
+</html>
