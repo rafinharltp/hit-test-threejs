@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hit Test — Three.js</title>
+  <style>html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif}#overlay{position:fixed;left:8px;top:8px;z-index:999;background:rgba(255,255,255,0.9);padding:8px;border-radius:6px}button{padding:8px 12px}</style>
+</head>
+<body>
+<div id="overlay">
+  <strong>Hit Test — Three.js</strong><br/>
+  <small>Usuario: rafinharltp · Repo: hit-test-threejs</small><br/><br/>
+  <button id="start-ar">Start AR (hit-test)</button>
+  <button id="open-non-ar">Abrir cena 3D (raycast)</button>
+</div>
+
+<!-- Non-AR scene (Raycasting) as a fallback in iframe -->
+<iframe id="nonar" style="width:100%;height:100%;border:0;display:none"></iframe>
+
+<script>
+document.getElementById('open-non-ar').addEventListener('click', () => {
+  document.getElementById('nonar').src = 'nonar.html';
+  document.getElementById('nonar').style.display = 'block';
+});
+
+document.getElementById('start-ar').addEventListener('click', async ()=>{
+  // Try to open AR page which requests an immersive-ar session.
+  // If unsupported, open non-AR fallback.
+  if (navigator.xr && navigator.xr.isSessionSupported) {
+    try {
+      const supported = await navigator.xr.isSessionSupported('immersive-ar');
+      if (supported) {
+        window.location.href = 'ar.html';
+        return;
+      }
+    } catch(e){ console.warn(e); }
+  }
+  // fallback
+  alert('AR não suportado neste dispositivo. Abrindo cena 3D fallback.');
+  document.getElementById('nonar').src = 'nonar.html';
+  document.getElementById('nonar').style.display = 'block';
+});
+</script>
+</body>
+</html>
